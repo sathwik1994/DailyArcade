@@ -1,29 +1,45 @@
 {
   "expo": {
-    "name": "DailyArcade",
-    "slug": "DailyArcade",
-    "version": "1.0.0",
-    "orientation": "portrait",
+    "name": "Daily Arcade",
+    "slug": "daily-arcade",
+    "version": "2.0.1",
+    "orientation": "default",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1a1a2e"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "platforms": ["ios", "android"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sathwik1994.dailyarcade",
+      "buildNumber": "2",
+      "icon": "./assets/icon.png",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./icon.png",
+        "backgroundColor": "#1a1a2e"
       },
-      "edgeToEdgeEnabled": true
+      "package": "com.sathwik1994.dailyarcade",
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "owner": "sathwik1994",
+    "extra": {
+      "eas": {
+        "projectId": "84514bf1-c0cb-4533-809d-609f1f156b31"
+      }
     }
   }
 }

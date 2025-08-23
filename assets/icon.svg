@@ -1,0 +1,113 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <radialGradient id="backgroundGradient" cx="0.5" cy="0.3" r="0.8">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="50%" style="stop-color:#16213e"/>
+      <stop offset="100%" style="stop-color:#0f3460"/>
+    </radialGradient>
+    
+    <!-- Card gradient -->
+    <linearGradient id="cardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff"/>
+      <stop offset="100%" style="stop-color:#f0f0f0"/>
+    </linearGradient>
+    
+    <!-- Crown gradient -->
+    <linearGradient id="crownGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffd700"/>
+      <stop offset="50%" style="stop-color:#ffed4e"/>
+      <stop offset="100%" style="stop-color:#ff6b6b"/>
+    </linearGradient>
+    
+    <!-- Glow effect -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Inner shadow -->
+    <filter id="innerShadow">
+      <feOffset dx="0" dy="4"/>
+      <feGaussianBlur stdDeviation="8" result="offset-blur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.3"/>
+      <feComposite in2="offset-blur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Rounded rectangle background -->
+  <rect width="1024" height="1024" rx="230" ry="230" fill="url(#backgroundGradient)" filter="url(#innerShadow)"/>
+  
+  <!-- Decorative border -->
+  <rect x="40" y="40" width="944" height="944" rx="200" ry="200" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="4"/>
+  
+  <!-- Central gaming controller outline -->
+  <path d="M200 400 Q200 350 250 350 L774 350 Q824 350 824 400 L824 500 Q824 550 774 550 L650 550 L650 600 Q650 630 620 630 L404 630 Q374 630 374 600 L374 550 L250 550 Q200 550 200 500 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+  
+  <!-- Playing card (representing Rummy) -->
+  <g transform="translate(200,250)">
+    <rect x="0" y="0" width="140" height="200" rx="20" ry="20" fill="url(#cardGradient)" stroke="#ddd" stroke-width="2" filter="url(#glow)"/>
+    <!-- Card suit symbols -->
+    <text x="20" y="40" font-family="Arial" font-size="28" fill="#dc2626">♥</text>
+    <text x="20" y="80" font-family="Arial" font-size="28" fill="#000">♠</text>
+    <text x="90" y="40" font-family="Arial" font-size="28" fill="#dc2626">♦</text>
+    <text x="90" y="80" font-family="Arial" font-size="28" fill="#000">♣</text>
+    <!-- Card center -->
+    <circle cx="70" cy="120" r="25" fill="rgba(255,107,107,0.1)"/>
+    <text x="70" y="130" font-family="Arial" font-size="24" fill="#666" text-anchor="middle">A</text>
+  </g>
+  
+  <!-- Queen crown (representing Queens puzzle) -->
+  <g transform="translate(480,280)" filter="url(#glow)">
+    <!-- Crown base -->
+    <path d="M20 100 L20 120 Q20 140 40 140 L160 140 Q180 140 180 120 L180 100 Z" fill="url(#crownGradient)"/>
+    <!-- Crown points -->
+    <path d="M20 100 L40 60 L60 80 L80 40 L100 80 L120 40 L140 80 L160 60 L180 100 Z" fill="url(#crownGradient)"/>
+    <!-- Crown jewels -->
+    <circle cx="50" cy="70" r="6" fill="#ff6b6b"/>
+    <circle cx="100" cy="50" r="8" fill="#4ecdc4"/>
+    <circle cx="150" cy="70" r="6" fill="#ff6b6b"/>
+    <!-- Crown highlight -->
+    <path d="M30 90 Q100 85 170 90" stroke="rgba(255,255,255,0.4)" stroke-width="2" fill="none"/>
+  </g>
+  
+  <!-- Central arcade elements -->
+  <g transform="translate(350,500)">
+    <!-- Joystick base -->
+    <circle cx="100" cy="80" r="45" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.3)" stroke-width="3"/>
+    <!-- Joystick -->
+    <circle cx="100" cy="80" r="20" fill="#ff6b6b" filter="url(#glow)"/>
+    <circle cx="100" cy="80" r="12" fill="#ffffff" opacity="0.3"/>
+    
+    <!-- Action buttons -->
+    <circle cx="200" cy="60" r="18" fill="#4ecdc4" filter="url(#glow)"/>
+    <circle cx="240" cy="100" r="18" fill="#45b7d1" filter="url(#glow)"/>
+    <circle cx="200" cy="140" r="18" fill="#f9ca24" filter="url(#glow)"/>
+    <circle cx="160" cy="100" r="18" fill="#6c5ce7" filter="url(#glow)"/>
+    
+    <!-- Button highlights -->
+    <circle cx="200" cy="55" r="6" fill="rgba(255,255,255,0.4)"/>
+    <circle cx="235" cy="95" r="6" fill="rgba(255,255,255,0.4)"/>
+    <circle cx="200" cy="135" r="6" fill="rgba(255,255,255,0.4)"/>
+    <circle cx="165" cy="95" r="6" fill="rgba(255,255,255,0.4)"/>
+  </g>
+  
+  <!-- Title text -->
+  <text x="512" y="720" font-family="Arial Black, Arial" font-size="72" font-weight="900" fill="rgba(255,255,255,0.9)" text-anchor="middle" filter="url(#glow)">ARCADE</text>
+  <text x="512" y="790" font-family="Arial" font-size="36" font-weight="600" fill="rgba(255,255,255,0.7)" text-anchor="middle">DAILY</text>
+  
+  <!-- Decorative stars -->
+  <g fill="#ffd700" opacity="0.6">
+    <polygon points="150,150 155,165 170,165 158,175 163,190 150,180 137,190 142,175 130,165 145,165" transform="scale(0.8)"/>
+    <polygon points="850,200 855,215 870,215 858,225 863,240 850,230 837,240 842,225 830,215 845,215" transform="scale(0.6)"/>
+    <polygon points="100,800 105,815 120,815 108,825 113,840 100,830 87,840 92,825 80,815 95,815" transform="scale(0.7)"/>
+    <polygon points="900,750 905,765 920,765 908,775 913,790 900,780 887,790 892,775 880,765 895,765" transform="scale(0.5)"/>
+  </g>
+</svg>

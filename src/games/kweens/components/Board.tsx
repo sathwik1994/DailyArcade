@@ -3,20 +3,17 @@ import { View, StyleSheet } from 'react-native';
 import type { Board, Puzzle } from '../types';
 import { Cell } from './Cell';
 
-// Enhanced color array with more distinct colors for better visibility
+// Custom color palette
 const COLORS = [
-  '#FF6F61', // Coral Red
-  '#6B5B95', // Purple
-  '#88B04B', // Green
-  '#F7CAC9', // Light Pink
-  '#92A8D1', // Light Blue
-  '#F7786B', // Salmon
-  '#034F84', // Navy Blue
-  '#F0E442', // Yellow
-  '#40E0D0', // Turquoise
-  '#FF69B4', // Hot Pink
-  '#32CD32', // Lime Green
-  '#FF8C00', // Dark Orange
+  '#C1A4D2', // Light Purple
+  '#F9C785', // Light Orange
+  '#F26A5E', // Coral Red
+  '#B0DB8D', // Light Green
+  '#F2F29B', // Light Yellow
+  '#D9D9D9', // Light Gray
+  '#E7A2C4', // Light Pink
+  '#C2B09F', // Light Brown
+  '#A5C8F0', // Light Blue
 ];
 
 export const BoardView: React.FC<{
@@ -97,6 +94,8 @@ const styles = StyleSheet.create({
     padding: 8, 
     backgroundColor: '#fff', 
     borderRadius: 16, 
+    borderWidth: 4,
+    borderColor: '#000000',
     shadowColor: '#000', 
     shadowOpacity: 0.06, 
     shadowRadius: 12, 

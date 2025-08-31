@@ -112,10 +112,10 @@ export default function GameSelectionScreen({ navigation }: Props) {
                 key={game.id}
                 game={game}
                 onPress={() => handleGameSelect(game.screenName)}
-                style={[
+                style={StyleSheet.flatten([
                   styles.gameCard,
-                  { marginTop: index === 0 ? 0 : 20 }
-                ]}
+                  index > 0 && { marginTop: 20 }
+                ])}
               />
             ))}
           </View>

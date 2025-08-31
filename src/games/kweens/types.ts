@@ -1,4 +1,4 @@
-export type CellState = 'empty' | 'queen' | 'dot';
+export type CellState = 'empty' | 'queen' | 'dot' | 'forbidden' | 'x';
 
 export type Puzzle = {
     id: string;

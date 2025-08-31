@@ -1,24 +1,93 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 
-// Screens
-import HomeScreen from './src/screens/HomeScreen';
-import GameSelectionScreen from './src/screens/GameSelectionScreen';
+// Prevent splash screen from auto hiding - this is key for Release builds
+SplashScreen.preventAutoHideAsync();
 
-// Games
-import KweensGame from './src/games/kweens/App';
-import RummyGame from './src/games/rummy/App';
+// Import navigation components safely for production builds
+let NavigationContainer, createNativeStackNavigator;
+let HomeScreen, GameSelectionScreen;
+let KweensGame, RummyGame;
+let ErrorBoundary;
 
-// Types
-import { RootStackParamList } from './src/types/navigation';
+try {
+  const nav = require('@react-navigation/native');
+  const stack = require('@react-navigation/native-stack');
+  NavigationContainer = nav.NavigationContainer;
+  createNativeStackNavigator = stack.createNativeStackNavigator;
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+  HomeScreen = require('./src/screens/HomeScreen').default;
+  GameSelectionScreen = require('./src/screens/GameSelectionScreen').default;
+  KweensGame = require('./src/games/kweens/App').default;
+  RummyGame = require('./src/games/rummy/App').default;
+  ErrorBoundary = require('./src/components/ErrorBoundary').default;
+} catch (error) {
+  console.error('Failed to load navigation components:', error);
+}
+
+const Stack = createNativeStackNavigator ? createNativeStackNavigator() : null;
 
 export default function App() {
-  return (
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    async function prepare() {
+      try {
+        console.log('Daily Arcade: Preparing app...');
+        
+        // Small delay to ensure everything is loaded
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        console.log('Daily Arcade: App prepared, components loaded:', {
+          hasNavigation: !!NavigationContainer,
+          hasHomeScreen: !!HomeScreen,
+          hasStack: !!Stack
+        });
+        
+      } catch (e) {
+        console.warn('Daily Arcade: Error during app preparation:', e);
+      } finally {
+        setIsReady(true);
+      }
+    }
+
+    prepare();
+  }, []);
+
+  const onLayoutRootView = React.useCallback(async () => {
+    if (isReady) {
+      try {
+        console.log('Daily Arcade: Hiding splash screen');
+        await SplashScreen.hideAsync();
+      } catch (error) {
+        console.warn('Daily Arcade: Error hiding splash screen:', error);
+      }
+    }
+  }, [isReady]);
+
+  if (!isReady) {
+    return null;
+  }
+
+  // Fallback UI if navigation components couldn't be loaded
+  if (!NavigationContainer || !HomeScreen) {
+    console.warn('Daily Arcade: Navigation components not loaded, showing fallback');
+    return (
+      <SafeAreaView style={styles.container} onLayout={onLayoutRootView}>
+        <StatusBar style="light" backgroundColor="#1a1a2e" />
+        <View style={styles.content}>
+          <Text style={styles.title}>Daily Arcade</Text>
+          <Text style={styles.subtitle}>Welcome to Daily Arcade</Text>
+          <Text style={styles.message}>Loading games...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Main app with navigation
+  const AppContent = () => (
     <NavigationContainer>
       <StatusBar style="light" backgroundColor="#1a1a2e" />
       <Stack.Navigator 
@@ -48,23 +117,74 @@ export default function App() {
             },
           }}
         />
-        <Stack.Screen 
-          name="Kweens" 
-          component={KweensGame}
-          options={{ 
-            title: 'Kweens Puzzle',
-            headerShown: false 
-          }}
-        />
-        <Stack.Screen 
-          name="Rummy" 
-          component={RummyGame}
-          options={{ 
-            title: 'Indian Rummy',
-            headerShown: false 
-          }}
-        />
+        {KweensGame && (
+          <Stack.Screen 
+            name="Kweens" 
+            component={KweensGame}
+            options={{ 
+              title: 'Kweens Puzzle',
+              headerShown: false 
+            }}
+          />
+        )}
+        {RummyGame && (
+          <Stack.Screen 
+            name="Rummy" 
+            component={RummyGame}
+            options={{ 
+              title: 'Indian Rummy',
+              headerShown: false 
+            }}
+          />
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );
+
+  // Wrap in error boundary if available
+  return (
+    <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+      {ErrorBoundary ? (
+        <ErrorBoundary>
+          <AppContent />
+        </ErrorBoundary>
+      ) : (
+        <AppContent />
+      )}
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#1a1a2e',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 18,
+    color: '#cccccc',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  message: {
+    fontSize: 16,
+    color: '#ffffff',
+    textAlign: 'center',
+    backgroundColor: '#333333',
+    padding: 15,
+    borderRadius: 10,
+  },
+});

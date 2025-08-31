@@ -128,7 +128,6 @@ const styles = StyleSheet.create({
     marginBottom: 50,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-    backdropFilter: 'blur(10px)',
   },
   arcadeText: {
     fontSize: 60,

@@ -4,27 +4,80 @@ import { useNavigation } from '@react-navigation/native';
 import type { Board, Puzzle } from '../types';
 import { PUZZLES } from '../puzzles';
 import { BoardView } from '../components/Board';
-import { cloneBoard, createEmptyBoard, computeConflicts, countQueens, hasWon, generateRegions } from '../logic';
+import { cloneBoard, createEmptyBoard, computeConflicts, countQueens, hasWon, generateRegions, calculateForbiddenPositions } from '../logic';
+
+// Get daily puzzle based on current date
+function getDailyPuzzle(): Puzzle {
+    try {
+        // Simple approach using local date
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const day = now.getDate();
+        
+        // Create a simple seed based on date
+        const seed = year * 10000 + month * 100 + day;
+        
+        // Generate random puzzle size from 5x5 to 9x9
+        const minSize = 5;
+        const maxSize = 9;
+        const sizeRange = maxSize - minSize + 1; // 5 sizes total (5,6,7,8,9)
+        
+        // Use seed to determine puzzle size consistently
+        const sizeIndex = Math.abs(seed) % sizeRange;
+        const puzzleSize = minSize + sizeIndex;
+        
+        return {
+            id: `daily-${year}-${month}-${day}`,
+            name: `Daily ${month + 1}/${day}/${year} - ${puzzleSize}x${puzzleSize}`,
+            size: puzzleSize,
+            regions: generateRegions(puzzleSize, seed)
+        };
+    } catch (error) {
+        console.error('Error generating daily puzzle:', error);
+        // Ultimate fallback - use 6x6 as safe middle size
+        return {
+            id: 'error-fallback',
+            name: 'Daily Puzzle - 6x6',
+            size: 6,
+            regions: generateRegions(6, 12345)
+        };
+    }
+}
+
+// Get next midnight local time (simplified)
+function getNextMidnightCentral(): Date {
+    try {
+        const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+        return tomorrow;
+    } catch (error) {
+        console.error('Error calculating next midnight:', error);
+        // Fallback: 24 hours from now
+        return new Date(Date.now() + 24 * 60 * 60 * 1000);
+    }
+}
 
 export default function GameScreen() {
     const navigation = useNavigation();
 
-    // start from the first puzzle just for size/name; we'll overwrite regions
-    const base = PUZZLES[0]; // or keep your daily index logic if you prefer
-    const [puzzle, setPuzzle] = React.useState<Puzzle>({
-        ...base,
-        regions: generateRegions(base.size),
-    });
-
+    const [puzzle] = React.useState<Puzzle>(() => getDailyPuzzle());
     const [board, setBoard] = React.useState<Board>(() => createEmptyBoard(puzzle.size));
     
-    // Timer state
+    // Timer state for game play
     const [startTime, setStartTime] = React.useState<Date | null>(null);
     const [elapsedTime, setElapsedTime] = React.useState<number>(0);
     const [isGameWon, setIsGameWon] = React.useState<boolean>(false);
     const intervalRef = React.useRef<NodeJS.Timeout | null>(null);
+    
+    // Daily countdown timer state
+    const [timeUntilNext, setTimeUntilNext] = React.useState<string>('');
+    const dailyTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
     const conflicts = React.useMemo(() => computeConflicts(board, puzzle), [board, puzzle]);
+    const boardWithForbidden = React.useMemo(() => calculateForbiddenPositions(board, puzzle), [board, puzzle]);
     const queens = countQueens(board);
     const target = puzzle.size;
 
@@ -34,6 +87,48 @@ export default function GameScreen() {
         const remainingSeconds = seconds % 60;
         return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
     };
+
+    // Format countdown time as HH:MM:SS
+    const formatCountdown = (ms: number): string => {
+        const totalSeconds = Math.floor(ms / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    };
+
+    // Update countdown timer
+    const updateCountdown = React.useCallback(() => {
+        try {
+            const nextMidnight = getNextMidnightCentral();
+            const now = new Date();
+            const timeLeft = nextMidnight.getTime() - now.getTime();
+            
+            if (timeLeft <= 0) {
+                setTimeUntilNext('00:00:00');
+            } else {
+                setTimeUntilNext(formatCountdown(timeLeft));
+            }
+        } catch (error) {
+            console.error('Error updating countdown:', error);
+            setTimeUntilNext('--:--:--');
+        }
+    }, []);
+
+    // Start daily countdown timer
+    React.useEffect(() => {
+        updateCountdown(); // Initial update
+        
+        dailyTimerRef.current = setInterval(() => {
+            updateCountdown();
+        }, 1000);
+
+        return () => {
+            if (dailyTimerRef.current) {
+                clearInterval(dailyTimerRef.current);
+            }
+        };
+    }, [updateCountdown]);
 
     // Start timer when first queen is placed
     const startTimer = React.useCallback(() => {
@@ -55,13 +150,6 @@ export default function GameScreen() {
         }
     }, []);
 
-    // Reset timer
-    const resetTimer = React.useCallback(() => {
-        stopTimer();
-        setStartTime(null);
-        setElapsedTime(0);
-        setIsGameWon(false);
-    }, [stopTimer]);
 
     // Back button handler with confirmation if game is in progress
     const handleBackPress = () => {
@@ -86,11 +174,11 @@ export default function GameScreen() {
         }
     };
 
-    // whenever puzzle changes, reset board and timer
+    // Initialize board only when component mounts (puzzle won't change now)
     React.useEffect(() => {
         setBoard(createEmptyBoard(puzzle.size));
-        resetTimer();
-    }, [puzzle, resetTimer]);
+        // Don't reset timer here - let it continue from previous state
+    }, []); // Removed puzzle dependency since it's now static daily puzzle
 
     // Check for win condition
     React.useEffect(() => {
@@ -108,29 +196,25 @@ export default function GameScreen() {
         }
     }, [board, puzzle, isGameWon, startTime, elapsedTime, stopTimer]);
 
-    // Cleanup interval on unmount
+    // Cleanup intervals on unmount
     React.useEffect(() => {
         return () => {
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
             }
+            if (dailyTimerRef.current) {
+                clearInterval(dailyTimerRef.current);
+            }
         };
     }, []);
 
     function tap(r: number, c: number) {
-        // Start timer on first move
-        if (queens === 0 && board[r][c] !== 'queen') {
-            startTimer();
+        // Don't allow tapping on auto-generated forbidden cells, but allow tapping on user X marks
+        const currentState = boardWithForbidden[r][c];
+        if (currentState === 'forbidden') {
+            return; // Do nothing for auto-generated forbidden cells
         }
         
-        setBoard(prev => {
-            const next = cloneBoard(prev);
-            next[r][c] = prev[r][c] === 'queen' ? 'empty' : 'queen';
-            return next;
-        });
-    }
-
-    function long(r: number, c: number) {
         // Start timer on first move
         if (queens === 0 && board[r][c] === 'empty') {
             startTimer();
@@ -138,21 +222,53 @@ export default function GameScreen() {
         
         setBoard(prev => {
             const next = cloneBoard(prev);
-            if (prev[r][c] === 'dot') next[r][c] = 'empty';
-            else if (prev[r][c] === 'empty') next[r][c] = 'dot';
+            const currentCell = prev[r][c];
+            
+            // Cycle through states: empty → x → queen → empty
+            if (currentCell === 'empty') {
+                next[r][c] = 'x';
+            } else if (currentCell === 'x') {
+                next[r][c] = 'queen';
+            } else if (currentCell === 'queen') {
+                next[r][c] = 'empty';
+            } else {
+                // For any other state, go to empty
+                next[r][c] = 'empty';
+            }
+            
             return next;
         });
     }
 
-    // NEW: make an entirely new region layout (same size)
-    function newRegions() {
-        setPuzzle(p => ({ ...p, regions: generateRegions(p.size) }));
+    function long(r: number, c: number) {
+        // Don't allow long press on forbidden cells
+        const currentState = boardWithForbidden[r][c];
+        if (currentState === 'forbidden') {
+            return; // Do nothing for forbidden cells
+        }
+        
+        // Start timer on first move
+        if (queens === 0 && board[r][c] === 'empty') {
+            startTimer();
+        }
+        
+        setBoard(prev => {
+            const next = cloneBoard(prev);
+            // Long press toggles dot (for backward compatibility)
+            if (prev[r][c] === 'dot') {
+                next[r][c] = 'empty';
+            } else if (prev[r][c] === 'empty') {
+                next[r][c] = 'dot';
+            }
+            return next;
+        });
     }
 
-    // Reset board and timer
+    // Reset only the game board, keep both timers running
     function resetGame() {
         setBoard(createEmptyBoard(puzzle.size));
-        resetTimer();
+        // Don't reset any timers - let the game play timer continue
+        // This way users can see total time spent across multiple attempts
     }
 
     return (
@@ -169,8 +285,14 @@ export default function GameScreen() {
             </View>
 
             <Text style={styles.subtitle}>One 👑 per row, column, and region. No diagonal touches.</Text>
+            
+            {/* Daily Puzzle Info */}
+            <View style={styles.dailyInfo}>
+                <Text style={styles.dailyTitle}>🗓️ {puzzle.name}</Text>
+                <Text style={styles.nextGameText}>Next game: {timeUntilNext}</Text>
+            </View>
 
-            {/* Timer Display */}
+            {/* Game Timer Display */}
             <View style={styles.timerContainer}>
                 <Text style={styles.timerText}>⏱️ {formatTime(elapsedTime)}</Text>
             </View>
@@ -182,18 +304,32 @@ export default function GameScreen() {
                 </Text>
             </View>
 
-            <BoardView puzzle={puzzle} board={board} conflicts={conflicts} onTapCell={tap} onLongCell={long} />
+            <BoardView puzzle={puzzle} board={boardWithForbidden} conflicts={conflicts} onTapCell={tap} onLongCell={long} />
+
+            {/* How to Play Section */}
+            <View style={styles.howToPlayContainer}>
+                <Text style={styles.howToPlayTitle}>How to play</Text>
+                <Text style={styles.howToPlayText}>
+                    Your goal is to have exactly one 👑 in each row, column, and color region.
+                </Text>
+                <Text style={styles.howToPlayText}>
+                    Tap once to place X and tap twice for 👑.
+                </Text>
+                <Text style={styles.howToPlayText}>
+                    Use X to mark where 👑 cannot be placed.
+                </Text>
+                <Text style={styles.howToPlayText}>
+                    Two 👑 cannot touch each other, not even diagonally.
+                </Text>
+            </View>
 
             <View style={styles.buttons}>
                 <Pressable style={styles.button} onPress={resetGame}>
                     <Text style={styles.buttonText}>Reset</Text>
                 </Pressable>
-                <Pressable style={[styles.button, styles.primary]} onPress={newRegions}>
-                    <Text style={[styles.buttonText, styles.primaryText]}>New Regions</Text>
-                </Pressable>
             </View>
 
-            <Text style={styles.hint}>Tip: Tap = place/remove 👑, Long-press = toggle dot.</Text>
+            <Text style={styles.hint}>Tip: Tap = cycle through ✕ → 👑 → empty, Long-press = toggle dot.</Text>
         </View>
     );
 }
@@ -297,5 +433,54 @@ const styles = StyleSheet.create({
         textAlign: 'center', 
         color: '#666', 
         marginTop: 12 
+    },
+    dailyInfo: {
+        alignItems: 'center',
+        marginBottom: 16,
+        backgroundColor: 'rgba(124, 58, 237, 0.1)',
+        borderRadius: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        marginHorizontal: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(124, 58, 237, 0.2)',
+    },
+    dailyTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#7c3aed',
+        marginBottom: 4,
+        textAlign: 'center',
+    },
+    nextGameText: {
+        fontSize: 14,
+        color: '#6b7280',
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    howToPlayContainer: {
+        backgroundColor: '#f8fafc',
+        borderRadius: 12,
+        padding: 16,
+        marginTop: 16,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        alignSelf: 'center',
+        width: '100%',
+        maxWidth: 380,
+    },
+    howToPlayTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#1f2937',
+        marginBottom: 12,
+        textAlign: 'center',
+    },
+    howToPlayText: {
+        fontSize: 14,
+        color: '#4b5563',
+        lineHeight: 20,
+        marginBottom: 8,
+        textAlign: 'left',
     },
 });

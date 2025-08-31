@@ -1,7 +1,24 @@
 import type { Board, Puzzle } from './types';
 
+// Simple seeded random number generator
+class SeededRandom {
+    private seed: number;
+    
+    constructor(seed: number) {
+        this.seed = seed;
+    }
+    
+    next(): number {
+        this.seed = (this.seed * 9301 + 49297) % 233280;
+        return this.seed / 233280;
+    }
+}
+
 // Enhanced region generation with guaranteed consecutive IDs and exactly N regions
-export function generateRegions(n: number): number[][] {
+export function generateRegions(n: number, seed?: number): number[][] {
+    const random = seed !== undefined ? new SeededRandom(seed) : null;
+    const randFunc = random ? () => random.next() : Math.random;
+    
     let attempts = 0;
     const maxAttempts = 10;
     
@@ -11,7 +28,7 @@ export function generateRegions(n: number): number[][] {
         // Pick n random unique seed cells
         const picks = new Set<number>();
         while (picks.size < n) {
-            picks.add(Math.floor(Math.random() * n * n));
+            picks.add(Math.floor(randFunc() * n * n));
         }
         
         // Create seeds with consecutive IDs (0, 1, 2, ..., n-1)
@@ -54,6 +71,56 @@ export function generateRegions(n: number): number[][] {
         
         // If we don't have exactly n regions, try again
         if (uniqueRegions.size !== n) {
+            continue;
+        }
+        
+        // Check if any region dominates entire rows or columns
+        let isValidLayout = true;
+        
+        // Check rows: no region should occupy an entire row
+        for (let r = 0; r < n; r++) {
+            const rowRegions = new Set(regions[r]);
+            if (rowRegions.size === 1) {
+                isValidLayout = false;
+                break;
+            }
+        }
+        
+        // Check columns: no region should occupy an entire column
+        if (isValidLayout) {
+            for (let c = 0; c < n; c++) {
+                const colRegions = new Set();
+                for (let r = 0; r < n; r++) {
+                    colRegions.add(regions[r][c]);
+                }
+                if (colRegions.size === 1) {
+                    isValidLayout = false;
+                    break;
+                }
+            }
+        }
+        
+        // Check region sizes: no region should be too large
+        if (isValidLayout) {
+            const regionSizes = new Map<number, number>();
+            for (let r = 0; r < n; r++) {
+                for (let c = 0; c < n; c++) {
+                    const regionId = regions[r][c];
+                    regionSizes.set(regionId, (regionSizes.get(regionId) || 0) + 1);
+                }
+            }
+            
+            // Reject if any region has more than half the board
+            const maxRegionSize = Math.floor((n * n) / 2);
+            for (const size of regionSizes.values()) {
+                if (size > maxRegionSize) {
+                    isValidLayout = false;
+                    break;
+                }
+            }
+        }
+        
+        if (!isValidLayout) {
             continue;
         }
         
@@ -121,23 +188,36 @@ function performConservativeSmoothing(regions: number[][], n: number): number[][
     return result;
 }
 
-// Fallback function to create a guaranteed valid region layout
+// Create a valid diagonal-based region layout that's guaranteed solvable
 function createFallbackRegions(n: number): number[][] {
     const regions = Array.from({ length: n }, () => Array(n).fill(0));
     
-    // Create regions in a predictable pattern that guarantees exactly n regions
-    let regionId = 0;
-    const cellsPerRegion = Math.floor((n * n) / n);
-    let cellsAssigned = 0;
-    
-    for (let r = 0; r < n; r++) {
-        for (let c = 0; c < n; c++) {
-            if (cellsAssigned >= cellsPerRegion && regionId < n - 1) {
-                regionId++;
-                cellsAssigned = 0;
+    if (n === 5) {
+        // Special case for 5x5 - create a proven solvable pattern
+        return [
+            [0, 0, 1, 1, 2],
+            [0, 0, 1, 1, 2],
+            [3, 3, 1, 1, 2],
+            [3, 3, 4, 4, 4],
+            [3, 3, 4, 4, 4],
+        ];
+    } else if (n === 6) {
+        // Create 6 roughly equal regions for 6x6
+        return [
+            [0, 0, 1, 1, 2, 2],
+            [0, 0, 1, 1, 2, 2],
+            [3, 3, 1, 1, 2, 2],
+            [3, 3, 4, 4, 5, 5],
+            [3, 3, 4, 4, 5, 5],
+            [3, 3, 4, 4, 5, 5],
+        ];
+    } else {
+        // Generic diagonal pattern for all other sizes (5x5 to 9x9)
+        // This creates a diagonal stripe pattern that's usually solvable
+        for (let r = 0; r < n; r++) {
+            for (let c = 0; c < n; c++) {
+                regions[r][c] = (r + c) % n;
             }
-            regions[r][c] = regionId;
-            cellsAssigned++;
         }
     }
     
@@ -176,6 +256,57 @@ function normalizeRegionIds(regions: number[][], expectedCount: number): number[
 
 export function createEmptyBoard(n: number): Board {
     return Array.from({ length: n }, () => Array.from({ length: n }, () => 'empty'));
+}
+
+// Calculate forbidden positions based on placed queens
+export function calculateForbiddenPositions(board: Board, puzzle: Puzzle): Board {
+    const n = puzzle.size;
+    const result: Board = board.map(row => [...row]);
+    
+    // Find all queens
+    const queens: [number, number][] = [];
+    for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+            if (board[r][c] === 'queen') {
+                queens.push([r, c]);
+            }
+        }
+    }
+    
+    // For each queen, mark forbidden positions
+    queens.forEach(([qr, qc]) => {
+        // Mark same row and column as forbidden (but don't override user X marks)
+        for (let i = 0; i < n; i++) {
+            if (i !== qc && result[qr][i] === 'empty') {
+                result[qr][i] = 'forbidden';
+            }
+            if (i !== qr && result[i][qc] === 'empty') {
+                result[i][qc] = 'forbidden';
+            }
+        }
+        
+        // Mark only immediately adjacent diagonal positions as forbidden (no diagonal touching)
+        const diagonalDirs = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+        diagonalDirs.forEach(([dr, dc]) => {
+            const r = qr + dr;
+            const c = qc + dc;
+            if (r >= 0 && r < n && c >= 0 && c < n && result[r][c] === 'empty') {
+                result[r][c] = 'forbidden';
+            }
+        });
+        
+        // Mark same region as forbidden (if queen already placed in region)
+        const queenRegion = puzzle.regions[qr][qc];
+        for (let r = 0; r < n; r++) {
+            for (let c = 0; c < n; c++) {
+                if (puzzle.regions[r][c] === queenRegion && result[r][c] === 'empty') {
+                    result[r][c] = 'forbidden';
+                }
+            }
+        }
+    });
+    
+    return result;
 }
 
 export function cloneBoard(b: Board): Board {

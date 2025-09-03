@@ -12,8 +12,20 @@ export type CellProps = {
 };
 
 export const Cell: React.FC<CellProps> = ({ size, state, regionColor, conflicted, onTap, onLongPress }) => {
+  const borderColor = conflicted ? '#ef4444' : '#666666';
+  const borderWidth = 2;
+  
   return (
-    <Pressable onPress={onTap} onLongPress={onLongPress} style={[styles.cell, { width: size, height: size, backgroundColor: regionColor, borderColor: conflicted ? '#ef4444' : '#666666' }]}>
+    <Pressable onPress={onTap} onLongPress={onLongPress} style={[
+      styles.cell, 
+      { 
+        width: size, 
+        height: size, 
+        backgroundColor: regionColor, 
+        borderColor,
+        borderWidth,
+      }
+    ]}>
       {state === 'queen' && (
         <Text style={[styles.queen, conflicted && { color: '#ef4444' }]}>👑</Text>
       )}

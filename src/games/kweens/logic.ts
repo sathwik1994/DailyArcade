@@ -112,8 +112,9 @@ export function generateRegions(n: number, seed?: number): number[][] {
             
             // Reject if any region has more than half the board
             const maxRegionSize = Math.floor((n * n) / 2);
-            for (const size of regionSizes.values()) {
-                if (size > maxRegionSize) {
+            const sizes = Array.from(regionSizes.values());
+            for (let i = 0; i < sizes.length; i++) {
+                if (sizes[i] > maxRegionSize) {
                     isValidLayout = false;
                     break;
                 }
@@ -136,7 +137,17 @@ export function generateRegions(n: number, seed?: number): number[][] {
         }
         
         if (finalUniqueRegions.size === n) {
-            return normalizeRegionIds(smoothedRegions, n);
+            // Test if the puzzle is actually solvable before returning it
+            const testPuzzle: Puzzle = {
+                id: 'test',
+                name: 'test',
+                size: n,
+                regions: normalizeRegionIds(smoothedRegions)
+            };
+            
+            if (isPuzzleSolvable(testPuzzle)) {
+                return normalizeRegionIds(smoothedRegions);
+            }
         }
     }
     
@@ -190,42 +201,100 @@ function performConservativeSmoothing(regions: number[][], n: number): number[][
 
 // Create a valid diagonal-based region layout that's guaranteed solvable
 function createFallbackRegions(n: number): number[][] {
-    const regions = Array.from({ length: n }, () => Array(n).fill(0));
-    
-    if (n === 5) {
-        // Special case for 5x5 - create a proven solvable pattern
-        return [
-            [0, 0, 1, 1, 2],
-            [0, 0, 1, 1, 2],
-            [3, 3, 1, 1, 2],
-            [3, 3, 4, 4, 4],
-            [3, 3, 4, 4, 4],
-        ];
-    } else if (n === 6) {
-        // Create 6 roughly equal regions for 6x6
-        return [
-            [0, 0, 1, 1, 2, 2],
-            [0, 0, 1, 1, 2, 2],
-            [3, 3, 1, 1, 2, 2],
-            [3, 3, 4, 4, 5, 5],
-            [3, 3, 4, 4, 5, 5],
-            [3, 3, 4, 4, 5, 5],
-        ];
-    } else {
-        // Generic diagonal pattern for all other sizes (5x5 to 9x9)
-        // This creates a diagonal stripe pattern that's usually solvable
-        for (let r = 0; r < n; r++) {
-            for (let c = 0; c < n; c++) {
-                regions[r][c] = (r + c) % n;
+    // Try multiple patterns and return the first solvable one
+    const patterns = [
+        // Pattern 1: Diagonal stripes
+        () => {
+            const regions = Array.from({ length: n }, () => Array(n).fill(0));
+            for (let r = 0; r < n; r++) {
+                for (let c = 0; c < n; c++) {
+                    regions[r][c] = (r + c) % n;
+                }
             }
+            return regions;
+        },
+        
+        // Pattern 2: Horizontal stripes with offset
+        () => {
+            const regions = Array.from({ length: n }, () => Array(n).fill(0));
+            for (let r = 0; r < n; r++) {
+                for (let c = 0; c < n; c++) {
+                    regions[r][c] = (r + Math.floor(c / 2)) % n;
+                }
+            }
+            return regions;
+        },
+        
+        // Pattern 3: Vertical stripes with offset
+        () => {
+            const regions = Array.from({ length: n }, () => Array(n).fill(0));
+            for (let r = 0; r < n; r++) {
+                for (let c = 0; c < n; c++) {
+                    regions[r][c] = (c + Math.floor(r / 2)) % n;
+                }
+            }
+            return regions;
+        },
+        
+        // Pattern 4: Known solvable patterns for specific sizes
+        () => {
+            if (n === 5) {
+                return [
+                    [0, 1, 2, 3, 4],
+                    [2, 3, 4, 0, 1],
+                    [4, 0, 1, 2, 3],
+                    [1, 2, 3, 4, 0],
+                    [3, 4, 0, 1, 2],
+                ];
+            } else if (n === 6) {
+                return [
+                    [0, 1, 2, 3, 4, 5],
+                    [2, 3, 4, 5, 0, 1],
+                    [4, 5, 0, 1, 2, 3],
+                    [1, 2, 3, 4, 5, 0],
+                    [3, 4, 5, 0, 1, 2],
+                    [5, 0, 1, 2, 3, 4],
+                ];
+            }
+            // For other sizes, use diagonal pattern
+            const regions = Array.from({ length: n }, () => Array(n).fill(0));
+            for (let r = 0; r < n; r++) {
+                for (let c = 0; c < n; c++) {
+                    regions[r][c] = (r + c) % n;
+                }
+            }
+            return regions;
+        }
+    ];
+    
+    // Try each pattern and return the first solvable one
+    for (const patternFn of patterns) {
+        const regions = patternFn();
+        const testPuzzle: Puzzle = {
+            id: 'fallback-test',
+            name: 'fallback test',
+            size: n,
+            regions
+        };
+        
+        if (isPuzzleSolvable(testPuzzle)) {
+            return regions;
         }
     }
     
+    // Ultimate fallback - should never reach here but just in case
+    // Return simple diagonal pattern
+    const regions = Array.from({ length: n }, () => Array(n).fill(0));
+    for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+            regions[r][c] = (r + c) % n;
+        }
+    }
     return regions;
 }
 
 // Helper function to ensure region IDs are consecutive starting from 0
-function normalizeRegionIds(regions: number[][], expectedCount: number): number[][] {
+function normalizeRegionIds(regions: number[][]): number[][] {
     const n = regions.length;
     const uniqueIds = new Set<number>();
     
@@ -409,8 +478,87 @@ export function hasWon(board: Board, puzzle: Puzzle): boolean {
     for (let r = 0; r < n; r++)
         for (let c = 0; c < n; c++)
             if (board[r][c] === 'queen') regionCounts.set(puzzle.regions[r][c], (regionCounts.get(puzzle.regions[r][c]) || 0) + 1);
-    for (const [, v] of regionCounts) if (v !== 1) return false;
+    const regionCountValues = Array.from(regionCounts.values());
+    for (let i = 0; i < regionCountValues.length; i++) {
+        if (regionCountValues[i] !== 1) return false;
+    }
 
     // No conflicts
     return conf.every((row) => row.every((v) => !v));
 }
+
+// Check if a puzzle is solvable using backtracking
+function isPuzzleSolvable(puzzle: Puzzle): boolean {
+    const n = puzzle.size;
+    const board = createEmptyBoard(n);
+    
+    // Try to solve using backtracking
+    return solvePuzzleRecursive(board, puzzle, 0);
+}
+
+function solvePuzzleRecursive(board: Board, puzzle: Puzzle, row: number): boolean {
+    const n = puzzle.size;
+    
+    // Base case: all rows processed
+    if (row === n) {
+        return hasWon(board, puzzle);
+    }
+    
+    // Try placing a queen in each column of this row
+    for (let col = 0; col < n; col++) {
+        if (canPlaceQueen(board, puzzle, row, col)) {
+            // Place queen
+            board[row][col] = 'queen';
+            
+            // Recursively try next row
+            if (solvePuzzleRecursive(board, puzzle, row + 1)) {
+                return true;
+            }
+            
+            // Backtrack
+            board[row][col] = 'empty';
+        }
+    }
+    
+    return false;
+}
+
+function canPlaceQueen(board: Board, puzzle: Puzzle, row: number, col: number): boolean {
+    const n = puzzle.size;
+    
+    // Check if there's already a queen in this column
+    for (let r = 0; r < row; r++) {
+        if (board[r][col] === 'queen') {
+            return false;
+        }
+    }
+    
+    // Check diagonals (only need to check above current row)
+    for (let r = 0; r < row; r++) {
+        for (let c = 0; c < n; c++) {
+            if (board[r][c] === 'queen') {
+                // Check if diagonal touch
+                if (Math.abs(r - row) === Math.abs(c - col)) {
+                    return false;
+                }
+                // Check if immediately adjacent diagonally
+                if (Math.abs(r - row) === 1 && Math.abs(c - col) === 1) {
+                    return false;
+                }
+            }
+        }
+    }
+    
+    // Check if there's already a queen in this region
+    const targetRegion = puzzle.regions[row][col];
+    for (let r = 0; r < row; r++) {
+        for (let c = 0; c < n; c++) {
+            if (board[r][c] === 'queen' && puzzle.regions[r][c] === targetRegion) {
+                return false;
+            }
+        }
+    }
+    
+    return true;
+}
+
